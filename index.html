@@ -120,6 +120,112 @@
             width: 100%;
             outline: none;
         }
+        
+        .priority-high {
+            background-color: #fee2e2;
+            border-left: 3px solid #ef4444;
+        }
+        
+        .priority-medium {
+            background-color: #fef3c7;
+            border-left: 3px solid #f59e0b;
+        }
+        
+        .priority-low {
+            background-color: #ecfdf5;
+            border-left: 3px solid #10b981;
+        }
+        
+        .deadline-overdue {
+            color: #ef4444;
+            font-weight: 500;
+        }
+        
+        .deadline-today {
+            color: #f59e0b;
+            font-weight: 500;
+        }
+        
+        .deadline-future {
+            color: #6b7280;
+        }
+        
+        .select-dropdown {
+            appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 0.5rem center;
+            background-size: 1em;
+        }
+        
+        .priority-bars {
+            display: flex;
+            align-items: flex-end;
+            height: 20px;
+        }
+        
+        .priority-bar {
+            width: 6px;
+            margin-right: 2px;
+            background-color: #d1d5db;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .priority-bar:hover {
+            opacity: 0.8;
+        }
+        
+        .priority-bar.active {
+            background-color: #3b82f6;
+        }
+        
+        .priority-bar:nth-child(1) { height: 6px; }
+        .priority-bar:nth-child(2) { height: 9px; }
+        .priority-bar:nth-child(3) { height: 12px; }
+        .priority-bar:nth-child(4) { height: 15px; }
+        .priority-bar:nth-child(5) { height: 18px; }
+        
+        .priority-1 .priority-bar:nth-child(1),
+        .priority-2 .priority-bar:nth-child(-n+2),
+        .priority-3 .priority-bar:nth-child(-n+3),
+        .priority-4 .priority-bar:nth-child(-n+4),
+        .priority-5 .priority-bar:nth-child(-n+5) {
+            background-color: #3b82f6;
+        }
+        
+        .priority-1 .priority-bar:nth-child(1) { background-color: #10b981; }
+        .priority-2 .priority-bar:nth-child(-n+2) { background-color: #10b981; }
+        .priority-3 .priority-bar:nth-child(-n+3) { background-color: #f59e0b; }
+        .priority-4 .priority-bar:nth-child(-n+4) { background-color: #f59e0b; }
+        .priority-5 .priority-bar:nth-child(-n+5) { background-color: #ef4444; }
+        
+        .priority-label {
+            font-size: 0.75rem;
+            color: #6b7280;
+            margin-top: 2px;
+        }
+        
+        .priority-label.low { color: #10b981; }
+        .priority-label.medium { color: #f59e0b; }
+        .priority-label.high { color: #ef4444; }
+        
+        .datetime-input::-webkit-calendar-picker-indicator {
+            background: transparent;
+            bottom: 0;
+            color: transparent;
+            cursor: pointer;
+            height: auto;
+            left: 0;
+            position: absolute;
+            right: 0;
+            top: 0;
+            width: auto;
+        }
+        
+        .datetime-input {
+            position: relative;
+        }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
@@ -189,11 +295,41 @@
                             </div>
                             
                             <!-- Форма добавления задачи -->
-                            <div class="mt-6 flex">
-                                <input type="text" id="new-task-input" placeholder="Добавить новую задачу..." class="flex-1 px-4 py-2 border border-gray-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                                <button id="add-task-btn" class="px-4 py-2 bg-blue-500 text-white rounded-r-lg hover:bg-blue-600">
-                                    <i class="fas fa-plus"></i>
-                                </button>
+                            <div class="mt-6">
+                                <div class="flex mb-2">
+                                    <input type="text" id="new-task-input" placeholder="Добавить новую задачу..." class="flex-1 px-4 py-2 border border-gray-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                    <button id="add-task-btn" class="px-4 py-2 bg-blue-500 text-white rounded-r-lg hover:bg-blue-600">
+                                        <i class="fas fa-plus"></i>
+                                    </button>
+                                </div>
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                    <div>
+                                        <label class="block text-sm text-gray-500 mb-1">Ответственный</label>
+                                        <input type="text" id="task-responsible" list="responsible-list" placeholder="Введите имя" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                        <datalist id="responsible-list">
+                                            <!-- Список будет заполняться динамически -->
+                                        </datalist>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm text-gray-500 mb-1">Дедлайн</label>
+                                        <div class="relative">
+                                            <input type="datetime-local" id="task-deadline" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent datetime-input">
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm text-gray-500 mb-1">Приоритет</label>
+                                        <div class="priority-selector">
+                                            <div class="priority-bars" id="priority-bars">
+                                                <div class="priority-bar" data-priority="1"></div>
+                                                <div class="priority-bar" data-priority="2"></div>
+                                                <div class="priority-bar" data-priority="3"></div>
+                                                <div class="priority-bar" data-priority="4"></div>
+                                                <div class="priority-bar" data-priority="5"></div>
+                                            </div>
+                                            <div class="priority-label" id="priority-label">Не указан</div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -382,7 +518,9 @@
             meetings: [],
             currentMeeting: null,
             activeTab: 'current',
-            editingMeetingId: null
+            editingMeetingId: null,
+            responsibleList: [],
+            selectedPriority: 0
         };
         
         // Элементы DOM
@@ -431,7 +569,12 @@
             closeEditMeetingBtn: document.getElementById('close-edit-meeting-btn'),
             cancelEditMeetingBtn: document.getElementById('cancel-edit-meeting-btn'),
             saveEditMeetingBtn: document.getElementById('save-edit-meeting-btn'),
-            deleteMeetingBtn: document.getElementById('delete-meeting-btn')
+            deleteMeetingBtn: document.getElementById('delete-meeting-btn'),
+            taskResponsible: document.getElementById('task-responsible'),
+            responsibleList: document.getElementById('responsible-list'),
+            taskDeadline: document.getElementById('task-deadline'),
+            priorityBars: document.getElementById('priority-bars'),
+            priorityLabel: document.getElementById('priority-label')
         };
         
         // Инициализация приложения
@@ -439,12 +582,29 @@
             // Загружаем данные из localStorage
             loadData();
             
+            // Устанавливаем дедлайн по умолчанию (завтра в 18:00)
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            tomorrow.setHours(18, 0, 0, 0);
+            
+            // Форматируем для datetime-local
+            const year = tomorrow.getFullYear();
+            const month = String(tomorrow.getMonth() + 1).padStart(2, '0');
+            const day = String(tomorrow.getDate()).padStart(2, '0');
+            const hours = String(tomorrow.getHours()).padStart(2, '0');
+            const minutes = String(tomorrow.getMinutes()).padStart(2, '0');
+            
+            elements.taskDeadline.value = `${year}-${month}-${day}T${hours}:${minutes}`;
+            
             // Если нет текущей планёрки, создаем новую
             if (!state.currentMeeting) {
                 createNewMeeting();
             } else {
                 renderCurrentMeeting();
             }
+            
+            // Обновляем список ответственных
+            updateResponsibleList();
             
             // Обработчики событий
             setupEventListeners();
@@ -457,6 +617,7 @@
                 const data = JSON.parse(savedData);
                 state.meetings = data.meetings || [];
                 state.currentMeeting = data.currentMeeting || null;
+                state.responsibleList = data.responsibleList || [];
             }
         }
         
@@ -464,9 +625,32 @@
         function saveData() {
             const data = {
                 meetings: state.meetings,
-                currentMeeting: state.currentMeeting
+                currentMeeting: state.currentMeeting,
+                responsibleList: state.responsibleList
             };
             localStorage.setItem('meetingPlanner', JSON.stringify(data));
+        }
+        
+        // Обновление списка ответственных в datalist
+        function updateResponsibleList() {
+            elements.responsibleList.innerHTML = '';
+            state.responsibleList.forEach(responsible => {
+                const option = document.createElement('option');
+                option.value = responsible;
+                elements.responsibleList.appendChild(option);
+            });
+        }
+        
+        // Добавление нового ответственного в список
+        function addResponsibleToHistory(responsible) {
+            if (!responsible) return;
+            
+            // Проверяем, есть ли уже такой ответственный в списке
+            if (!state.responsibleList.includes(responsible)) {
+                state.responsibleList.push(responsible);
+                updateResponsibleList();
+                saveData();
+            }
         }
         
         // Создание новой планёрки
@@ -526,13 +710,69 @@
                 
                 let tasksHTML = '';
                 tasks.forEach((task, index) => {
+                    // Определяем класс приоритета
+                    let priorityClass = '';
+                    if (task.priority >= 4) priorityClass = 'priority-high';
+                    else if (task.priority >= 2) priorityClass = 'priority-medium';
+                    else if (task.priority === 1) priorityClass = 'priority-low';
+                    
+                    // Форматируем дедлайн
+                    let deadlineText = '';
+                    let deadlineClass = '';
+                    if (task.deadline) {
+                        const deadlineDate = new Date(task.deadline);
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+                        
+                        // Форматируем дату и время
+                        deadlineText = deadlineDate.toLocaleDateString('ru-RU', {
+                            day: 'numeric',
+                            month: 'long',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        });
+                        
+                        // Определяем класс для дедлайна
+                        if (deadlineDate < new Date()) {
+                            deadlineClass = 'deadline-overdue';
+                        } else if (deadlineDate.toDateString() === today.toDateString()) {
+                            deadlineClass = 'deadline-today';
+                        } else {
+                            deadlineClass = 'deadline-future';
+                        }
+                    }
+                    
+                    // Генерируем столбики приоритета
+                    let priorityBarsHTML = '';
+                    if (task.priority) {
+                        priorityBarsHTML = `
+                            <div class="priority-bars priority-${task.priority}">
+                                <div class="priority-bar"></div>
+                                <div class="priority-bar"></div>
+                                <div class="priority-bar"></div>
+                                <div class="priority-bar"></div>
+                                <div class="priority-bar"></div>
+                            </div>
+                        `;
+                    }
+                    
                     tasksHTML += `
-                        <div class="task-item slide-in flex items-center p-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50" data-index="${index}">
-                            <input type="checkbox" ${task.completed ? 'checked' : ''} class="checkbox-custom mr-3">
-                            <div class="flex-1 ${task.completed ? 'task-completed' : ''}">${task.text}</div>
-                            <button class="delete-task-btn text-gray-400 hover:text-red-500 ml-2">
-                                <i class="fas fa-trash-alt"></i>
-                            </button>
+                        <div class="task-item slide-in flex flex-col p-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 ${priorityClass}" data-index="${index}">
+                            <div class="flex items-center">
+                                <input type="checkbox" ${task.completed ? 'checked' : ''} class="checkbox-custom mr-3">
+                                <div class="flex-1 ${task.completed ? 'task-completed' : ''}">${task.text}</div>
+                                <button class="delete-task-btn text-gray-400 hover:text-red-500 ml-2">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                            </div>
+                            <div class="flex flex-wrap items-center mt-2 text-sm">
+                                ${task.responsible ? `<div class="mr-4"><i class="fas fa-user mr-1"></i>${task.responsible}</div>` : ''}
+                                ${task.deadline ? `<div class="mr-4 ${deadlineClass}"><i class="fas fa-calendar-day mr-1"></i>${deadlineText}</div>` : ''}
+                                ${task.priority ? `<div class="flex items-center">
+                                    <div class="mr-1"><i class="fas fa-flag ${task.priority >= 4 ? 'text-red-500' : task.priority >= 2 ? 'text-yellow-500' : 'text-green-500'}"></i></div>
+                                    ${getPriorityLabel(task.priority)}
+                                </div>` : ''}
+                            </div>
                         </div>
                     `;
                 });
@@ -550,6 +790,18 @@
                         deleteTask(index);
                     });
                 });
+            }
+        }
+        
+        // Получение текстового значения приоритета
+        function getPriorityLabel(priority) {
+            switch(priority) {
+                case 1: return '<span class="text-green-500">Низкий</span>';
+                case 2: 
+                case 3: return '<span class="text-yellow-500">Средний</span>';
+                case 4: 
+                case 5: return '<span class="text-red-500">Высокий</span>';
+                default: return '';
             }
         }
         
@@ -578,18 +830,90 @@
             const taskText = elements.newTaskInput.value.trim();
             if (!taskText || !state.currentMeeting) return;
             
+            // Форматируем дедлайн для хранения
+            let deadlineValue = null;
+            if (elements.taskDeadline.value) {
+                deadlineValue = new Date(elements.taskDeadline.value).toISOString();
+            }
+            
+            // Добавляем ответственного в историю, если указан
+            if (elements.taskResponsible.value.trim()) {
+                addResponsibleToHistory(elements.taskResponsible.value.trim());
+            }
+            
             const task = {
                 text: taskText,
                 completed: false,
-                createdAt: new Date().toISOString()
+                createdAt: new Date().toISOString(),
+                responsible: elements.taskResponsible.value.trim() || null,
+                deadline: deadlineValue,
+                priority: state.selectedPriority || null
             };
             
             state.currentMeeting.tasks.push(task);
             elements.newTaskInput.value = '';
+            elements.taskResponsible.value = '';
+            
+            // Сбрасываем приоритет
+            state.selectedPriority = 0;
+            updatePriorityDisplay();
+            
+            // Устанавливаем дедлайн по умолчанию (завтра в 18:00)
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            tomorrow.setHours(18, 0, 0, 0);
+            
+            // Форматируем для datetime-local
+            const year = tomorrow.getFullYear();
+            const month = String(tomorrow.getMonth() + 1).padStart(2, '0');
+            const day = String(tomorrow.getDate()).padStart(2, '0');
+            const hours = String(tomorrow.getHours()).padStart(2, '0');
+            const minutes = String(tomorrow.getMinutes()).padStart(2, '0');
+            
+            elements.taskDeadline.value = `${year}-${month}-${day}T${hours}:${minutes}`;
             
             renderTasks();
             updateProgress();
             saveData();
+        }
+        
+        // Обновление отображения выбранного приоритета
+        function updatePriorityDisplay() {
+            // Сбрасываем все столбики
+            document.querySelectorAll('#priority-bars .priority-bar').forEach(bar => {
+                bar.style.backgroundColor = '#d1d5db';
+            });
+            
+            // Устанавливаем активные столбики
+            if (state.selectedPriority > 0) {
+                for (let i = 0; i < state.selectedPriority; i++) {
+                    const bar = document.querySelector(`#priority-bars .priority-bar:nth-child(${i + 1})`);
+                    if (bar) {
+                        if (state.selectedPriority <= 2) {
+                            bar.style.backgroundColor = '#10b981'; // Зеленый для низкого
+                        } else if (state.selectedPriority <= 4) {
+                            bar.style.backgroundColor = '#f59e0b'; // Желтый для среднего
+                        } else {
+                            bar.style.backgroundColor = '#ef4444'; // Красный для высокого
+                        }
+                    }
+                }
+            }
+            
+            // Обновляем текстовую метку
+            if (state.selectedPriority === 0) {
+                elements.priorityLabel.textContent = 'Не указан';
+                elements.priorityLabel.className = 'priority-label';
+            } else if (state.selectedPriority <= 2) {
+                elements.priorityLabel.textContent = 'Низкий';
+                elements.priorityLabel.className = 'priority-label low';
+            } else if (state.selectedPriority <= 4) {
+                elements.priorityLabel.textContent = 'Средний';
+                elements.priorityLabel.className = 'priority-label medium';
+            } else {
+                elements.priorityLabel.textContent = 'Высокий';
+                elements.priorityLabel.className = 'priority-label high';
+            }
         }
         
         // Переключение статуса задачи
@@ -694,12 +1018,47 @@
             // Рендерим задачи
             let tasksHTML = '';
             meeting.tasks.forEach(task => {
+                // Форматируем дедлайн
+                let deadlineText = '';
+                let deadlineClass = '';
+                if (task.deadline) {
+                    const deadlineDate = new Date(task.deadline);
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    
+                    deadlineText = deadlineDate.toLocaleDateString('ru-RU', {
+                        day: 'numeric',
+                        month: 'long',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                    
+                    // Определяем класс для дедлайна
+                    if (deadlineDate < new Date()) {
+                        deadlineClass = 'deadline-overdue';
+                    } else if (deadlineDate.toDateString() === today.toDateString()) {
+                        deadlineClass = 'deadline-today';
+                    } else {
+                        deadlineClass = 'deadline-future';
+                    }
+                }
+                
                 tasksHTML += `
-                    <div class="flex items-center p-2 bg-gray-50 rounded">
-                        <div class="w-5 h-5 flex items-center justify-center mr-3">
-                            ${task.completed ? '<i class="fas fa-check text-green-500"></i>' : '<i class="fas fa-circle-notch text-gray-400"></i>'}
+                    <div class="flex flex-col p-3 bg-gray-50 rounded-lg mb-2">
+                        <div class="flex items-center">
+                            <div class="w-5 h-5 flex items-center justify-center mr-3">
+                                ${task.completed ? '<i class="fas fa-check text-green-500"></i>' : '<i class="fas fa-circle-notch text-gray-400"></i>'}
+                            </div>
+                            <div class="${task.completed ? 'line-through text-gray-400' : 'text-gray-700'}">${task.text}</div>
                         </div>
-                        <div class="${task.completed ? 'line-through text-gray-400' : 'text-gray-700'}">${task.text}</div>
+                        <div class="flex flex-wrap items-center mt-2 text-sm">
+                            ${task.responsible ? `<div class="mr-4"><i class="fas fa-user mr-1"></i>${task.responsible}</div>` : ''}
+                            ${task.deadline ? `<div class="mr-4 ${deadlineClass}"><i class="fas fa-calendar-day mr-1"></i>${deadlineText}</div>` : ''}
+                            ${task.priority ? `<div class="flex items-center">
+                                <div class="mr-1"><i class="fas fa-flag ${task.priority >= 4 ? 'text-red-500' : task.priority >= 2 ? 'text-yellow-500' : 'text-green-500'}"></i></div>
+                                ${getPriorityLabel(task.priority)}
+                            </div>` : ''}
+                        </div>
                     </div>
                 `;
             });
@@ -734,17 +1093,61 @@
             // Рендерим задачи для редактирования
             let tasksHTML = '';
             meeting.tasks.forEach((task, index) => {
+                // Форматируем дедлайн для datetime-local
+                let deadlineValue = '';
+                if (task.deadline) {
+                    const deadlineDate = new Date(task.deadline);
+                    deadlineValue = deadlineDate.toISOString().slice(0, 16);
+                }
+                
                 tasksHTML += `
-                    <div class="flex items-center p-2 bg-gray-50 rounded mb-2" data-index="${index}">
-                        <input type="checkbox" ${task.completed ? 'checked' : ''} class="checkbox-custom mr-3">
-                        <input type="text" value="${task.text}" class="flex-1 px-3 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-transparent">
-                        <button class="delete-task-in-edit text-gray-400 hover:text-red-500 ml-2">
-                            <i class="fas fa-trash-alt"></i>
-                        </button>
+                    <div class="flex flex-col p-3 bg-gray-50 rounded-lg mb-2" data-index="${index}">
+                        <div class="flex items-center mb-2">
+                            <input type="checkbox" ${task.completed ? 'checked' : ''} class="checkbox-custom mr-3">
+                            <input type="text" value="${task.text}" class="flex-1 px-3 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-transparent">
+                            <button class="delete-task-in-edit text-gray-400 hover:text-red-500 ml-2">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">Ответственный</label>
+                                <input type="text" value="${task.responsible || ''}" list="edit-responsible-list" class="task-responsible-edit w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-transparent">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">Дедлайн</label>
+                                <div class="relative">
+                                    <input type="datetime-local" value="${deadlineValue}" class="task-deadline-edit w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-transparent datetime-input">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">Приоритет</label>
+                                <div class="priority-selector">
+                                    <div class="priority-bars priority-${task.priority || 0}" data-priority="${task.priority || 0}">
+                                        <div class="priority-bar" data-priority="1"></div>
+                                        <div class="priority-bar" data-priority="2"></div>
+                                        <div class="priority-bar" data-priority="3"></div>
+                                        <div class="priority-bar" data-priority="4"></div>
+                                        <div class="priority-bar" data-priority="5"></div>
+                                    </div>
+                                    <div class="priority-label">${task.priority ? getPriorityLabel(task.priority) : 'Не указан'}</div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 `;
             });
             elements.editMeetingTasksContainer.innerHTML = tasksHTML;
+            
+            // Добавляем datalist для ответственных в режиме редактирования
+            const editResponsibleList = document.createElement('datalist');
+            editResponsibleList.id = 'edit-responsible-list';
+            state.responsibleList.forEach(responsible => {
+                const option = document.createElement('option');
+                option.value = responsible;
+                editResponsibleList.appendChild(option);
+            });
+            elements.editMeetingTasksContainer.appendChild(editResponsibleList);
             
             // Добавляем обработчики для удаления задач в режиме редактирования
             document.querySelectorAll('.delete-task-in-edit').forEach((btn, index) => {
@@ -759,6 +1162,65 @@
             document.querySelectorAll('#edit-meeting-tasks-container input[type="checkbox"]').forEach((checkbox, index) => {
                 checkbox.addEventListener('change', () => {
                     meeting.tasks[index].completed = !meeting.tasks[index].completed;
+                });
+            });
+            
+            // Добавляем обработчики для полей ввода в режиме редактирования
+            document.querySelectorAll('#edit-meeting-tasks-container input[type="text"]').forEach((input, index) => {
+                input.addEventListener('change', (e) => {
+                    meeting.tasks[index].text = e.target.value;
+                });
+            });
+            
+            // Добавляем обработчики для ответственных в режиме редактирования
+            document.querySelectorAll('.task-responsible-edit').forEach((input, index) => {
+                input.addEventListener('change', (e) => {
+                    meeting.tasks[index].responsible = e.target.value;
+                    if (e.target.value.trim()) {
+                        addResponsibleToHistory(e.target.value.trim());
+                    }
+                });
+            });
+            
+            // Добавляем обработчики для дедлайнов в режиме редактирования
+            document.querySelectorAll('.task-deadline-edit').forEach((input, index) => {
+                input.addEventListener('change', (e) => {
+                    if (e.target.value) {
+                        meeting.tasks[index].deadline = new Date(e.target.value).toISOString();
+                    } else {
+                        meeting.tasks[index].deadline = null;
+                    }
+                });
+            });
+            
+            // Добавляем обработчики для приоритетов в режиме редактирования
+            document.querySelectorAll('#edit-meeting-tasks-container .priority-bars .priority-bar').forEach(bar => {
+                bar.addEventListener('click', function() {
+                    const priority = parseInt(this.getAttribute('data-priority'));
+                    const container = this.closest('.priority-bars');
+                    const taskIndex = parseInt(container.closest('[data-index]').getAttribute('data-index'));
+                    
+                    // Устанавливаем приоритет для задачи
+                    meeting.tasks[taskIndex].priority = priority;
+                    
+                    // Обновляем отображение
+                    container.className = `priority-bars priority-${priority}`;
+                    container.setAttribute('data-priority', priority);
+                    
+                    const label = container.nextElementSibling;
+                    if (priority === 0) {
+                        label.textContent = 'Не указан';
+                        label.className = 'priority-label';
+                    } else if (priority <= 2) {
+                        label.innerHTML = '<span class="text-green-500">Низкий</span>';
+                        label.className = 'priority-label low';
+                    } else if (priority <= 4) {
+                        label.innerHTML = '<span class="text-yellow-500">Средний</span>';
+                        label.className = 'priority-label medium';
+                    } else {
+                        label.innerHTML = '<span class="text-red-500">Высокий</span>';
+                        label.className = 'priority-label high';
+                    }
                 });
             });
             
@@ -1052,6 +1514,14 @@
                 }
             });
             
+            // Выбор приоритета
+            elements.priorityBars.querySelectorAll('.priority-bar').forEach(bar => {
+                bar.addEventListener('click', function() {
+                    state.selectedPriority = parseInt(this.getAttribute('data-priority'));
+                    updatePriorityDisplay();
+                });
+            });
+            
             // Модальное окно просмотра планёрки
             elements.closeViewMeetingBtn.addEventListener('click', () => {
                 elements.viewMeetingModal.classList.add('hidden');
@@ -1087,7 +1557,10 @@
                 meeting.tasks.push({
                     text: 'Новая задача',
                     completed: false,
-                    createdAt: new Date().toISOString()
+                    createdAt: new Date().toISOString(),
+                    responsible: null,
+                    deadline: null,
+                    priority: null
                 });
                 
                 editMeeting(); // Перерендериваем
