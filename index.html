@@ -226,6 +226,32 @@
         .datetime-input {
             position: relative;
         }
+        
+        .task-options {
+            display: none;
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #f9fafb;
+            border-radius: 0.5rem;
+            animation: fadeIn 0.2s ease-out;
+        }
+        
+        .task-options.show {
+            display: block;
+        }
+        
+        .options-btn {
+            background-color: transparent;
+            border: none;
+            cursor: pointer;
+            color: #6b7280;
+            padding: 0.5rem;
+            border-radius: 0.5rem;
+        }
+        
+        .options-btn:hover {
+            background-color: #f3f4f6;
+        }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
@@ -301,32 +327,39 @@
                                     <button id="add-task-btn" class="px-4 py-2 bg-blue-500 text-white rounded-r-lg hover:bg-blue-600">
                                         <i class="fas fa-plus"></i>
                                     </button>
+                                    <button id="show-options-btn" class="options-btn px-3 py-2 border border-gray-300 rounded-r-lg hover:bg-gray-100 ml-1">
+                                        <i class="fas fa-cog"></i>
+                                    </button>
                                 </div>
-                                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-                                    <div>
-                                        <label class="block text-sm text-gray-500 mb-1">Ответственный</label>
-                                        <input type="text" id="task-responsible" list="responsible-list" placeholder="Введите имя" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                                        <datalist id="responsible-list">
-                                            <!-- Список будет заполняться динамически -->
-                                        </datalist>
-                                    </div>
-                                    <div>
-                                        <label class="block text-sm text-gray-500 mb-1">Дедлайн</label>
-                                        <div class="relative">
-                                            <input type="datetime-local" id="task-deadline" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent datetime-input">
+                                
+                                <!-- Дополнительные параметры задачи -->
+                                <div id="task-options" class="task-options">
+                                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <div>
+                                            <label class="block text-sm text-gray-500 mb-1">Ответственный</label>
+                                            <input type="text" id="task-responsible" list="responsible-list" placeholder="Введите имя" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                            <datalist id="responsible-list">
+                                                <!-- Список будет заполняться динамически -->
+                                            </datalist>
                                         </div>
-                                    </div>
-                                    <div>
-                                        <label class="block text-sm text-gray-500 mb-1">Приоритет</label>
-                                        <div class="priority-selector">
-                                            <div class="priority-bars" id="priority-bars">
-                                                <div class="priority-bar" data-priority="1"></div>
-                                                <div class="priority-bar" data-priority="2"></div>
-                                                <div class="priority-bar" data-priority="3"></div>
-                                                <div class="priority-bar" data-priority="4"></div>
-                                                <div class="priority-bar" data-priority="5"></div>
+                                        <div>
+                                            <label class="block text-sm text-gray-500 mb-1">Дедлайн</label>
+                                            <div class="relative">
+                                                <input type="datetime-local" id="task-deadline" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent datetime-input">
                                             </div>
-                                            <div class="priority-label" id="priority-label">Не указан</div>
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm text-gray-500 mb-1">Приоритет</label>
+                                            <div class="priority-selector">
+                                                <div class="priority-bars" id="priority-bars">
+                                                    <div class="priority-bar" data-priority="1"></div>
+                                                    <div class="priority-bar" data-priority="2"></div>
+                                                    <div class="priority-bar" data-priority="3"></div>
+                                                    <div class="priority-bar" data-priority="4"></div>
+                                                    <div class="priority-bar" data-priority="5"></div>
+                                                </div>
+                                                <div class="priority-label" id="priority-label">Не указан</div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -520,7 +553,8 @@
             activeTab: 'current',
             editingMeetingId: null,
             responsibleList: [],
-            selectedPriority: 0
+            selectedPriority: 0,
+            showTaskOptions: false
         };
         
         // Элементы DOM
@@ -574,27 +608,15 @@
             responsibleList: document.getElementById('responsible-list'),
             taskDeadline: document.getElementById('task-deadline'),
             priorityBars: document.getElementById('priority-bars'),
-            priorityLabel: document.getElementById('priority-label')
+            priorityLabel: document.getElementById('priority-label'),
+            taskOptions: document.getElementById('task-options'),
+            showOptionsBtn: document.getElementById('show-options-btn')
         };
         
         // Инициализация приложения
         function init() {
             // Загружаем данные из localStorage
             loadData();
-            
-            // Устанавливаем дедлайн по умолчанию (завтра в 18:00)
-            const tomorrow = new Date();
-            tomorrow.setDate(tomorrow.getDate() + 1);
-            tomorrow.setHours(18, 0, 0, 0);
-            
-            // Форматируем для datetime-local
-            const year = tomorrow.getFullYear();
-            const month = String(tomorrow.getMonth() + 1).padStart(2, '0');
-            const day = String(tomorrow.getDate()).padStart(2, '0');
-            const hours = String(tomorrow.getHours()).padStart(2, '0');
-            const minutes = String(tomorrow.getMinutes()).padStart(2, '0');
-            
-            elements.taskDeadline.value = `${year}-${month}-${day}T${hours}:${minutes}`;
             
             // Если нет текущей планёрки, создаем новую
             if (!state.currentMeeting) {
@@ -853,24 +875,14 @@
             state.currentMeeting.tasks.push(task);
             elements.newTaskInput.value = '';
             elements.taskResponsible.value = '';
+            elements.taskDeadline.value = '';
             
             // Сбрасываем приоритет
             state.selectedPriority = 0;
             updatePriorityDisplay();
             
-            // Устанавливаем дедлайн по умолчанию (завтра в 18:00)
-            const tomorrow = new Date();
-            tomorrow.setDate(tomorrow.getDate() + 1);
-            tomorrow.setHours(18, 0, 0, 0);
-            
-            // Форматируем для datetime-local
-            const year = tomorrow.getFullYear();
-            const month = String(tomorrow.getMonth() + 1).padStart(2, '0');
-            const day = String(tomorrow.getDate()).padStart(2, '0');
-            const hours = String(tomorrow.getHours()).padStart(2, '0');
-            const minutes = String(tomorrow.getMinutes()).padStart(2, '0');
-            
-            elements.taskDeadline.value = `${year}-${month}-${day}T${hours}:${minutes}`;
+            // Скрываем дополнительные параметры
+            toggleTaskOptions(false);
             
             renderTasks();
             updateProgress();
@@ -1065,7 +1077,7 @@
             elements.viewMeetingTasks.innerHTML = tasksHTML || '<p class="text-gray-500">Нет задач</p>';
             
             // Рендерим заметки
-            elements.viewMeetingNotes.textContent = meeting.notes || 'Нет заметок';
+            elements.viewMeetingNotes.textContent = meeting.notes || 'Нет заметки';
             
             // Сохраняем ID редактируемой планёрки
             state.editingMeetingId = meetingId;
@@ -1218,7 +1230,7 @@
                         label.innerHTML = '<span class="text-yellow-500">Средний</span>';
                         label.className = 'priority-label medium';
                     } else {
-                        label.innerHTML = '<span class="text-red-500">Высокий</span>';
+                        label.innerHTML = '<span class="text-red-500">Высокй</span>';
                         label.className = 'priority-label high';
                     }
                 });
@@ -1471,6 +1483,17 @@
             }
         }
         
+        // Переключение отображения дополнительных параметров задачи
+        function toggleTaskOptions(show) {
+            state.showTaskOptions = show !== undefined ? show : !state.showTaskOptions;
+            
+            if (state.showTaskOptions) {
+                elements.taskOptions.classList.add('show');
+            } else {
+                elements.taskOptions.classList.remove('show');
+            }
+        }
+        
         // Настройка обработчиков событий
         function setupEventListeners() {
             // Кнопки вкладок
@@ -1564,6 +1587,20 @@
                 });
                 
                 editMeeting(); // Перерендериваем
+            });
+            
+            // Показать/скрыть дополнительные параметры задачи
+            elements.showOptionsBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                toggleTaskOptions();
+            });
+            
+            // Закрытие дополнительных параметров при клике вне их
+            document.addEventListener('click', function(event) {
+                if (!elements.taskOptions.contains(event.target) && 
+                    !elements.showOptionsBtn.contains(event.target)) {
+                    toggleTaskOptions(false);
+                }
             });
         }
         
