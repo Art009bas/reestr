@@ -252,6 +252,21 @@
         .options-btn:hover {
             background-color: #f3f4f6;
         }
+        
+        .sort-btn {
+            transition: all 0.2s;
+        }
+        
+        .sort-btn.active {
+            color: #3b82f6;
+            font-weight: 500;
+        }
+        
+        .search-highlight {
+            background-color: #fef08a;
+            padding: 0 2px;
+            border-radius: 2px;
+        }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
@@ -390,7 +405,38 @@
                 
                 <!-- Лента планёрок (скрыта по умолчанию) -->
                 <div id="history-container" class="hidden">
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <!-- Панель поиска и сортировки -->
+                    <div class="bg-white rounded-xl shadow-md overflow-hidden mb-6">
+                        <div class="p-6">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label for="search-input" class="block text-sm font-medium text-gray-700 mb-1">Поиск по планёркам</label>
+                                    <div class="relative">
+                                        <input type="text" id="search-input" placeholder="Поиск по названию, задачам, заметкам..." class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                            <i class="fas fa-search text-gray-400"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Сортировка</label>
+                                    <div class="flex space-x-2">
+                                        <button id="sort-date-btn" class="sort-btn active px-3 py-1 bg-blue-50 text-blue-500 rounded-lg text-sm">
+                                            <i class="fas fa-calendar-day mr-1"></i> По дате
+                                        </button>
+                                        <button id="sort-completion-btn" class="sort-btn px-3 py-1 bg-gray-100 text-gray-600 rounded-lg text-sm">
+                                            <i class="fas fa-percentage mr-1"></i> По выполнению
+                                        </button>
+                                        <button id="sort-tasks-btn" class="sort-btn px-3 py-1 bg-gray-100 text-gray-600 rounded-lg text-sm">
+                                            <i class="fas fa-tasks mr-1"></i> По задачам
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="meetings-grid">
                         <!-- Карточки планёрок будут здесь -->
                         <div class="text-center py-10 text-gray-400" id="no-history-message">
                             <i class="fas fa-history text-4xl mb-3"></i>
@@ -554,7 +600,10 @@
             editingMeetingId: null,
             responsibleList: [],
             selectedPriority: 0,
-            showTaskOptions: false
+            showTaskOptions: false,
+            searchQuery: '',
+            sortBy: 'date', // 'date', 'completion', 'tasks'
+            sortOrder: 'desc' // 'asc', 'desc'
         };
         
         // Элементы DOM
@@ -579,6 +628,7 @@
             completedTasks: document.getElementById('completed-tasks'),
             meetingProgress: document.getElementById('meeting-progress'),
             noHistoryMessage: document.getElementById('no-history-message'),
+            meetingsGrid: document.getElementById('meetings-grid'),
             totalMeetings: document.getElementById('total-meetings'),
             completedPercentage: document.getElementById('completed-percentage'),
             totalTasksStats: document.getElementById('total-tasks-stats'),
@@ -610,7 +660,11 @@
             priorityBars: document.getElementById('priority-bars'),
             priorityLabel: document.getElementById('priority-label'),
             taskOptions: document.getElementById('task-options'),
-            showOptionsBtn: document.getElementById('show-options-btn')
+            showOptionsBtn: document.getElementById('show-options-btn'),
+            searchInput: document.getElementById('search-input'),
+            sortDateBtn: document.getElementById('sort-date-btn'),
+            sortCompletionBtn: document.getElementById('sort-completion-btn'),
+            sortTasksBtn: document.getElementById('sort-tasks-btn')
         };
         
         // Инициализация приложения
@@ -969,13 +1023,57 @@
             switchTab('current');
         }
         
-        // Рендер ленты планёрок
+        // Рендер ленты планёрок с учетом поиска и сортировки
         function renderHistory() {
-            const completedMeetings = state.meetings.filter(m => m.completed);
+            let completedMeetings = state.meetings.filter(m => m.completed);
+            
+            // Применяем поиск, если есть запрос
+            if (state.searchQuery) {
+                const query = state.searchQuery.toLowerCase();
+                completedMeetings = completedMeetings.filter(meeting => {
+                    // Поиск по названию
+                    if (meeting.title.toLowerCase().includes(query)) return true;
+                    
+                    // Поиск по заметкам
+                    if (meeting.notes && meeting.notes.toLowerCase().includes(query)) return true;
+                    
+                    // Поиск по задачам
+                    const hasMatchingTask = meeting.tasks.some(task => 
+                        task.text.toLowerCase().includes(query) || 
+                        (task.responsible && task.responsible.toLowerCase().includes(query))
+                    );
+                    
+                    return hasMatchingTask;
+                });
+            }
+            
+            // Применяем сортировку
+            completedMeetings.sort((a, b) => {
+                switch(state.sortBy) {
+                    case 'date':
+                        return state.sortOrder === 'asc' 
+                            ? new Date(a.date) - new Date(b.date) 
+                            : new Date(b.date) - new Date(a.date);
+                    case 'completion':
+                        const aCompleted = a.tasks.filter(t => t.completed).length;
+                        const bCompleted = b.tasks.filter(t => t.completed).length;
+                        const aPercentage = a.tasks.length > 0 ? aCompleted / a.tasks.length : 0;
+                        const bPercentage = b.tasks.length > 0 ? bCompleted / b.tasks.length : 0;
+                        return state.sortOrder === 'asc' 
+                            ? aPercentage - bPercentage 
+                            : bPercentage - aPercentage;
+                    case 'tasks':
+                        return state.sortOrder === 'asc' 
+                            ? a.tasks.length - b.tasks.length 
+                            : b.tasks.length - a.tasks.length;
+                    default:
+                        return 0;
+                }
+            });
             
             if (completedMeetings.length === 0) {
                 elements.noHistoryMessage.classList.remove('hidden');
-                elements.historyContainer.querySelector('.grid').innerHTML = '';
+                elements.meetingsGrid.innerHTML = '';
             } else {
                 elements.noHistoryMessage.classList.add('hidden');
                 
@@ -986,10 +1084,50 @@
                     const completed = tasks.filter(t => t.completed).length;
                     const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
                     
+                    // Подсветка результатов поиска в названии
+                    let titleHTML = meeting.title;
+                    if (state.searchQuery) {
+                        const regex = new RegExp(state.searchQuery, 'gi');
+                        titleHTML = meeting.title.replace(regex, match => 
+                            `<span class="search-highlight">${match}</span>`
+                        );
+                    }
+                    
+                    // Подсветка результатов поиска в заметках
+                    let notesHTML = meeting.notes ? meeting.notes : '';
+                    if (state.searchQuery && meeting.notes) {
+                        const regex = new RegExp(state.searchQuery, 'gi');
+                        notesHTML = meeting.notes.replace(regex, match => 
+                            `<span class="search-highlight">${match}</span>`
+                        );
+                    }
+                    
+                    // Подсветка результатов поиска в задачах
+                    let tasksHTML = '';
+                    if (state.searchQuery) {
+                        const regex = new RegExp(state.searchQuery, 'gi');
+                        meeting.tasks.forEach(task => {
+                            const taskText = task.text.replace(regex, match => 
+                                `<span class="search-highlight">${match}</span>`
+                            );
+                            const responsibleText = task.responsible ? task.responsible.replace(regex, match => 
+                                `<span class="search-highlight">${match}</span>`
+                            ) : '';
+                            
+                            tasksHTML += `
+                                <div class="text-sm text-gray-600 truncate">
+                                    ${task.completed ? '<i class="fas fa-check text-green-500 mr-1"></i>' : '<i class="fas fa-circle-notch text-gray-400 mr-1"></i>'}
+                                    ${taskText}
+                                    ${responsibleText ? `<span class="text-xs text-gray-500 ml-1">(${responsibleText})</span>` : ''}
+                                </div>
+                            `;
+                        });
+                    }
+                    
                     historyHTML += `
                         <div class="meeting-card bg-white rounded-xl shadow-md overflow-hidden transition-all duration-300 cursor-pointer" data-id="${meeting.id}">
                             <div class="p-6 border-b border-gray-200">
-                                <h3 class="text-lg font-semibold text-gray-800">${meeting.title} <span class="text-sm font-normal text-gray-500">(${meeting.dateString})</span></h3>
+                                <h3 class="text-lg font-semibold text-gray-800">${titleHTML} <span class="text-sm font-normal text-gray-500">(${meeting.dateString})</span></h3>
                             </div>
                             <div class="p-6">
                                 <div class="flex justify-between items-center mb-3">
@@ -999,15 +1137,23 @@
                                 <div class="progress-bar">
                                     <div class="progress-fill" style="width: ${percentage}%"></div>
                                 </div>
-                                <div class="mt-4 text-sm text-gray-500">
-                                    ${meeting.notes ? `<p class="truncate"><i class="fas fa-sticky-note mr-2"></i>${meeting.notes}</p>` : ''}
-                                </div>
+                                ${state.searchQuery && tasksHTML ? `
+                                    <div class="mt-4 space-y-1">
+                                        <p class="text-xs font-medium text-gray-500">Найденные задачи:</p>
+                                        ${tasksHTML}
+                                    </div>
+                                ` : ''}
+                                ${notesHTML ? `
+                                    <div class="mt-4 text-sm text-gray-500">
+                                        <p class="truncate"><i class="fas fa-sticky-note mr-2"></i>${notesHTML}</p>
+                                    </div>
+                                ` : ''}
                             </div>
                         </div>
                     `;
                 });
                 
-                elements.historyContainer.querySelector('.grid').innerHTML = historyHTML;
+                elements.meetingsGrid.innerHTML = historyHTML;
                 
                 // Добавляем обработчики клика на карточки планёрок
                 document.querySelectorAll('.meeting-card').forEach(card => {
@@ -1129,7 +1275,7 @@
                             <div>
                                 <label class="block text-xs text-gray-500 mb-1">Дедлайн</label>
                                 <div class="relative">
-                                    <input type="datetime-local" value="${deadlineValue}" class="task-deadline-edit w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-transparent datetime-input">
+                                    <input type="datetime-local" value="${deadlineValue}" class="task-deadline-edit w-full px 2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-transparent datetime-input">
                                 </div>
                             </div>
                             <div>
@@ -1496,7 +1642,7 @@
         
         // Настройка обработчиков событий
         function setupEventListeners() {
-            // Кнопки вкладок
+            // Переключение вкладок
             elements.currentTab.addEventListener('click', () => switchTab('current'));
             elements.historyTab.addEventListener('click', () => switchTab('history'));
             elements.statsTab.addEventListener('click', () => switchTab('stats'));
@@ -1506,43 +1652,95 @@
             elements.addFirstTask.addEventListener('click', () => {
                 elements.newTaskInput.focus();
             });
+            
+            // Добавление задачи по нажатию Enter
             elements.newTaskInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') addTask();
+                if (e.key === 'Enter') {
+                    addTask();
+                }
             });
             
-            // Сохранение заметок
-            elements.meetingNotes.addEventListener('blur', saveNotes);
-            elements.meetingNotes.addEventListener('keyup', (e) => {
-                if (e.ctrlKey && e.key === 'Enter') saveNotes();
-            });
-            
-            // Кнопка завершения планёрки
-            elements.completeMeetingBtn.addEventListener('click', completeCurrentMeeting);
-            
-            // Редактирование названия планёрки
+            // Редактирование заголовка планёрки
             elements.meetingTitle.addEventListener('click', () => {
                 elements.meetingTitle.classList.add('hidden');
-                elements.meetingTitleInput.value = state.currentMeeting.title || `Планёрка от ${state.currentMeeting.dateString}`;
+                elements.meetingTitleInput.value = state.currentMeeting.title;
                 elements.meetingTitleInput.classList.remove('hidden');
                 elements.meetingTitleInput.focus();
             });
             
             elements.meetingTitleInput.addEventListener('blur', () => {
-                saveMeetingTitle();
+                const newTitle = elements.meetingTitleInput.value.trim();
+                if (newTitle && state.currentMeeting) {
+                    state.currentMeeting.title = newTitle;
+                    elements.meetingTitle.innerHTML = newTitle;
+                    saveData();
+                }
+                elements.meetingTitleInput.classList.add('hidden');
+                elements.meetingTitle.classList.remove('hidden');
             });
             
             elements.meetingTitleInput.addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') {
-                    saveMeetingTitle();
+                    elements.meetingTitleInput.blur();
                 }
             });
             
+            // Сохранение заметок
+            elements.meetingNotes.addEventListener('change', saveNotes);
+            elements.meetingNotes.addEventListener('blur', saveNotes);
+            
+            // Завершение планёрки
+            elements.completeMeetingBtn.addEventListener('click', completeCurrentMeeting);
+            
+            // Дополнительные параметры задачи
+            elements.showOptionsBtn.addEventListener('click', () => toggleTaskOptions());
+            
             // Выбор приоритета
-            elements.priorityBars.querySelectorAll('.priority-bar').forEach(bar => {
-                bar.addEventListener('click', function() {
-                    state.selectedPriority = parseInt(this.getAttribute('data-priority'));
+            elements.priorityBars.addEventListener('click', (e) => {
+                if (e.target.classList.contains('priority-bar')) {
+                    state.selectedPriority = parseInt(e.target.getAttribute('data-priority'));
                     updatePriorityDisplay();
+                }
+            });
+            
+            // Поиск в истории
+            elements.searchInput.addEventListener('input', (e) => {
+                state.searchQuery = e.target.value.trim();
+                renderHistory();
+            });
+            
+            // Сортировка
+            elements.sortDateBtn.addEventListener('click', () => {
+                state.sortBy = 'date';
+                document.querySelectorAll('.sort-btn').forEach(btn => {
+                    btn.classList.remove('active', 'bg-blue-50', 'text-blue-500');
+                    btn.classList.add('bg-gray-100', 'text-gray-600');
                 });
+                elements.sortDateBtn.classList.add('active', 'bg-blue-50', 'text-blue-500');
+                elements.sortDateBtn.classList.remove('bg-gray-100', 'text-gray-600');
+                renderHistory();
+            });
+            
+            elements.sortCompletionBtn.addEventListener('click', () => {
+                state.sortBy = 'completion';
+                document.querySelectorAll('.sort-btn').forEach(btn => {
+                    btn.classList.remove('active', 'bg-blue-50', 'text-blue-500');
+                    btn.classList.add('bg-gray-100', 'text-gray-600');
+                });
+                elements.sortCompletionBtn.classList.add('active', 'bg-blue-50', 'text-blue-500');
+                elements.sortCompletionBtn.classList.remove('bg-gray-100', 'text-gray-600');
+                renderHistory();
+            });
+            
+            elements.sortTasksBtn.addEventListener('click', () => {
+                state.sortBy = 'tasks';
+                document.querySelectorAll('.sort-btn').forEach(btn => {
+                    btn.classList.remove('active', 'bg-blue-50', 'text-blue-500');
+                    btn.classList.add('bg-gray-100', 'text-gray-600');
+                });
+                elements.sortTasksBtn.classList.add('active', 'bg-blue-50', 'text-blue-500');
+                elements.sortTasksBtn.classList.remove('bg-gray-100', 'text-gray-600');
+                renderHistory();
             });
             
             // Модальное окно просмотра планёрки
@@ -1556,16 +1754,12 @@
             // Модальное окно редактирования планёрки
             elements.closeEditMeetingBtn.addEventListener('click', () => {
                 elements.editMeetingModal.classList.add('hidden');
-                if (state.editingMeetingId) {
-                    showMeetingDetails(state.editingMeetingId);
-                }
+                elements.viewMeetingModal.classList.remove('hidden');
             });
             
             elements.cancelEditMeetingBtn.addEventListener('click', () => {
                 elements.editMeetingModal.classList.add('hidden');
-                if (state.editingMeetingId) {
-                    showMeetingDetails(state.editingMeetingId);
-                }
+                elements.viewMeetingModal.classList.remove('hidden');
             });
             
             elements.saveEditMeetingBtn.addEventListener('click', saveEditedMeeting);
@@ -1574,7 +1768,10 @@
             
             // Добавление задачи в режиме редактирования
             elements.addTaskInEdit.addEventListener('click', () => {
-                const meeting = state.meetings.find(m => m.id === state.editingMeetingId);
+                const meetingId = state.editingMeetingId;
+                if (!meetingId) return;
+                
+                const meeting = state.meetings.find(m => m.id === meetingId);
                 if (!meeting) return;
                 
                 meeting.tasks.push({
@@ -1583,42 +1780,27 @@
                     createdAt: new Date().toISOString(),
                     responsible: null,
                     deadline: null,
-                    priority: null
+                    priority: 0
                 });
                 
                 editMeeting(); // Перерендериваем
             });
             
-            // Показать/скрыть дополнительные параметры задачи
-            elements.showOptionsBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                toggleTaskOptions();
-            });
-            
-            // Закрытие дополнительных параметров при клике вне их
-            document.addEventListener('click', function(event) {
-                if (!elements.taskOptions.contains(event.target) && 
-                    !elements.showOptionsBtn.contains(event.target)) {
-                    toggleTaskOptions(false);
+            // Закрытие модальных окон при клике вне их
+            window.addEventListener('click', (e) => {
+                if (e.target === elements.viewMeetingModal) {
+                    elements.viewMeetingModal.classList.add('hidden');
+                    state.editingMeetingId = null;
+                }
+                
+                if (e.target === elements.editMeetingModal) {
+                    elements.editMeetingModal.classList.add('hidden');
+                    elements.viewMeetingModal.classList.remove('hidden');
                 }
             });
         }
         
-        // Сохранение названия планёрки
-        function saveMeetingTitle() {
-            if (!state.currentMeeting) return;
-            
-            const newTitle = elements.meetingTitleInput.value.trim();
-            state.currentMeeting.title = newTitle;
-            
-            elements.meetingTitle.innerHTML = newTitle;
-            elements.meetingTitleInput.classList.add('hidden');
-            elements.meetingTitle.classList.remove('hidden');
-            
-            saveData();
-        }
-        
-        // Запуск приложения
+        // Инициализация приложения при загрузке страницы
         document.addEventListener('DOMContentLoaded', init);
     </script>
 </body>
