@@ -294,6 +294,44 @@
             <div id="content-container">
                 <!-- Текущая планёрка -->
                 <div id="current-meeting-container" class="fade-in">
+                  <!-- Блок незавершённых задач — первым в <main> -->
+<!-- Блок незавершённых задач — первым в <main> -->
+<div id="unfinished-tasks-section" class="bg-white rounded-xl shadow-md overflow-hidden mb-10">
+    <div class="p-6 border-b border-gray-200">
+        <div class="flex justify-between items-center">
+            <h2 class="text-xl font-semibold text-gray-800 flex items-center">
+                <i class="fas fa-exclamation-circle text-red-500 mr-3"></i>
+                Незавершённые задачи
+            </h2>
+        </div>
+        <div class="mt-4 flex flex-wrap justify-between items-center text-sm">
+            <div class="text-gray-500 flex items-center mb-2">
+                <i class="fas fa-tasks mr-1"></i>
+                <span id="unfinished-total-tasks">0</span> задач
+            </div>
+            <div class="flex space-x-2 mb-2">
+                <button class="sort-btn active px-3 py-1 bg-blue-50 text-blue-500 rounded-lg" data-sort="date">По дате</button>
+                <button class="sort-btn px-3 py-1 bg-gray-100 text-gray-600 rounded-lg" data-sort="priority">По приоритету</button>
+                <button class="sort-btn px-3 py-1 bg-gray-100 text-gray-600 rounded-lg" data-sort="deadline">По дедлайну</button>
+            </div>
+        </div>
+    </div>
+    <div class="p-6 max-h-96 overflow-y-auto" id="unfinished-tasks-container">
+        <p class="text-gray-400 text-sm">Загрузка задач...</p>
+    </div>
+</div>
+
+<!-- Модальное окно подтверждения -->
+<div id="confirm-complete-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-sm p-6 fade-in">
+        <h3 class="text-lg font-semibold text-gray-800 mb-4">Завершить задачу?</h3>
+        <p class="text-sm text-gray-600 mb-6">Вы уверены, что хотите отметить задачу как выполненную?</p>
+        <div class="flex justify-end space-x-3">
+            <button id="cancel-complete-task" class="px-4 py-2 text-gray-600 hover:text-gray-800">Отмена</button>
+            <button id="confirm-complete-task" class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600">Завершить</button>
+        </div>
+    </div>
+</div>
                     <div class="bg-white rounded-xl shadow-md overflow-hidden mb-8">
                         <div class="p-6 border-b border-gray-200">
                             <div id="meeting-title-container" class="flex items-center">
@@ -500,6 +538,7 @@
                     </div>
                 </div>
             </div>
+
         </main>
         
         <footer class="mt-16 text-center text-gray-500 text-sm pb-8">
@@ -1803,5 +1842,105 @@
         // Инициализация приложения при загрузке страницы
         document.addEventListener('DOMContentLoaded', init);
     </script>
+   <script>
+let unfinishedSortBy = 'date';
+
+function renderUnfinishedTasks() {
+    const container = document.getElementById('unfinished-tasks-container');
+    const totalElem = document.getElementById('unfinished-total-tasks');
+    if (!container) return;
+
+    let allTasks = state.meetings.flatMap(m =>
+        m.tasks.map(task => ({ ...task, meetingTitle: m.title, meetingId: m.id, meetingDate: m.date }))
+    ).filter(task => !task.completed);
+
+    switch (unfinishedSortBy) {
+        case 'priority':
+            allTasks.sort((a, b) => (b.priority || 0) - (a.priority || 0)); break;
+        case 'deadline':
+            allTasks.sort((a, b) => new Date(a.deadline || '9999-12-31') - new Date(b.deadline || '9999-12-31')); break;
+        default:
+            allTasks.sort((a, b) => new Date(b.meetingDate) - new Date(a.meetingDate)); break;
+    }
+
+    totalElem.textContent = allTasks.length;
+
+    if (allTasks.length === 0) {
+        container.innerHTML = '<p class="text-gray-500">Все задачи выполнены ✅</p>';
+        return;
+    }
+
+    container.innerHTML = '';
+    allTasks.slice(0, 100).forEach((task) => {
+        const taskElem = document.createElement('div');
+        taskElem.className = 'flex items-start justify-between border-b border-gray-100 py-3';
+
+        const parts = [];
+        parts.push(`<span><i class='fas fa-calendar-alt mr-1'></i>${task.meetingTitle}</span>`);
+        if (task.responsible) parts.push(`<span><i class='fas fa-user mr-1'></i>${task.responsible}</span>`);
+        if (task.deadline) {
+            const deadline = new Date(task.deadline).toLocaleString('ru-RU', {
+                day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
+            });
+            parts.push(`<span><i class='fas fa-clock mr-1'></i>${deadline}</span>`);
+        }
+        if (task.priority) {
+            const label = task.priority >= 4 ? 'Высокий' : task.priority >= 2 ? 'Средний' : 'Низкий';
+            const color = task.priority >= 4 ? 'text-red-500' : task.priority >= 2 ? 'text-yellow-500' : 'text-green-500';
+            parts.push(`<span><i class='fas fa-flag mr-1 ${color}'></i>${label}</span>`);
+        }
+
+        taskElem.innerHTML = `
+            <div>
+                <div class="font-medium text-gray-800">${task.text}</div>
+                <div class="text-sm text-gray-500 space-x-2 mt-1">${parts.join('')}</div>
+            </div>
+            <div>
+                <input type="checkbox" class="checkbox-custom mt-1" data-meeting-id="${task.meetingId}" data-task-text="${task.text}" title="Завершить">
+            </div>
+        `;
+
+        container.appendChild(taskElem);
+    });
+
+    container.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+        cb.addEventListener('change', function () {
+            if (!confirm('Вы уверены, что хотите отметить задачу как выполненную?')) {
+                this.checked = false;
+                return;
+            }
+            const meetingId = parseInt(this.dataset.meetingId);
+            const taskText = this.dataset.taskText;
+            const meeting = state.meetings.find(m => m.id === meetingId);
+            if (meeting) {
+                const task = meeting.tasks.find(t => t.text === taskText);
+                if (task) {
+                    task.completed = true;
+                    saveData();
+                    renderUnfinishedTasks();
+                    if (state.activeTab === 'stats') renderStats();
+                }
+            }
+        });
+    });
+}
+
+setTimeout(() => {
+    document.querySelectorAll('#unfinished-tasks-section .sort-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('#unfinished-tasks-section .sort-btn').forEach(b => b.classList.remove('active', 'text-blue-500', 'bg-blue-50'));
+            btn.classList.add('active', 'text-blue-500', 'bg-blue-50');
+            unfinishedSortBy = btn.dataset.sort;
+            renderUnfinishedTasks();
+        });
+    });
+}, 100);
+
+const originalSwitchTab = switchTab;
+switchTab = function(tab) {
+    originalSwitchTab(tab);
+    if (tab === 'current') renderUnfinishedTasks();
+};
+</script>
 </body>
 </html>
