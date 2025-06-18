@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Протокол планёрок</title>
-    <script src="tailwind.js"></script>
+    <script src="https://art009bas.github.io/reestr/tailwind.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         @keyframes fadeIn {
@@ -723,6 +723,9 @@
             
             // Обработчики событий
             setupEventListeners();
+            
+            // Загружаем незавершённые задачи
+            renderUnfinishedTasks();
         }
         
         // Загрузка данных из localStorage
@@ -1850,17 +1853,43 @@ function renderUnfinishedTasks() {
     const totalElem = document.getElementById('unfinished-total-tasks');
     if (!container) return;
 
-    let allTasks = state.meetings.flatMap(m =>
+    // Собираем все незавершённые задачи из всех планёрок
+    let allTasks = [];
+    
+    // Добавляем задачи из завершённых планёрок
+    allTasks = state.meetings.flatMap(m =>
         m.tasks.map(task => ({ ...task, meetingTitle: m.title, meetingId: m.id, meetingDate: m.date }))
     ).filter(task => !task.completed);
 
+    // Добавляем задачи из текущей планёрки (если есть)
+    if (state.currentMeeting) {
+        allTasks = allTasks.concat(
+            state.currentMeeting.tasks
+                .filter(task => !task.completed)
+                .map(task => ({ 
+                    ...task, 
+                    meetingTitle: state.currentMeeting.title, 
+                    meetingId: state.currentMeeting.id, 
+                    meetingDate: state.currentMeeting.date 
+                }))
+        );
+    }
+
+    // Сортируем задачи
     switch (unfinishedSortBy) {
         case 'priority':
-            allTasks.sort((a, b) => (b.priority || 0) - (a.priority || 0)); break;
+            allTasks.sort((a, b) => (b.priority || 0) - (a.priority || 0)); 
+            break;
         case 'deadline':
-            allTasks.sort((a, b) => new Date(a.deadline || '9999-12-31') - new Date(b.deadline || '9999-12-31')); break;
+            allTasks.sort((a, b) => {
+                const aDeadline = a.deadline ? new Date(a.deadline) : new Date('9999-12-31');
+                const bDeadline = b.deadline ? new Date(b.deadline) : new Date('9999-12-31');
+                return aDeadline - bDeadline;
+            }); 
+            break;
         default:
-            allTasks.sort((a, b) => new Date(b.meetingDate) - new Date(a.meetingDate)); break;
+            allTasks.sort((a, b) => new Date(b.meetingDate) - new Date(a.meetingDate)); 
+            break;
     }
 
     totalElem.textContent = allTasks.length;
@@ -1925,16 +1954,19 @@ function renderUnfinishedTasks() {
     });
 }
 
-setTimeout(() => {
-    document.querySelectorAll('#unfinished-tasks-section .sort-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            document.querySelectorAll('#unfinished-tasks-section .sort-btn').forEach(b => b.classList.remove('active', 'text-blue-500', 'bg-blue-50'));
-            btn.classList.add('active', 'text-blue-500', 'bg-blue-50');
-            unfinishedSortBy = btn.dataset.sort;
-            renderUnfinishedTasks();
+// Устанавливаем обработчики сортировки
+document.querySelectorAll('#unfinished-tasks-section .sort-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('#unfinished-tasks-section .sort-btn').forEach(b => {
+            b.classList.remove('active', 'text-blue-500', 'bg-blue-50');
+            b.classList.add('bg-gray-100', 'text-gray-600');
         });
+        btn.classList.add('active', 'text-blue-500', 'bg-blue-50');
+        btn.classList.remove('bg-gray-100', 'text-gray-600');
+        unfinishedSortBy = btn.dataset.sort;
+        renderUnfinishedTasks();
     });
-}, 100);
+});
 
 const originalSwitchTab = switchTab;
 switchTab = function(tab) {
