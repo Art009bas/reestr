@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -201,14 +202,10 @@
         .priority-5 .priority-bar:nth-child(-n+5) { background-color: #ef4444; }
         
         .priority-label {
-            font-size: 0.75rem;
-            color: #6b7280;
-            margin-top: 2px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            margin-top: 0.25rem;
         }
-        
-        .priority-label.low { color: #10b981; }
-        .priority-label.medium { color: #f59e0b; }
-        .priority-label.high { color: #ef4444; }
         
         .datetime-input::-webkit-calendar-picker-indicator {
             background: transparent;
@@ -318,6 +315,49 @@
     </div>
     <div class="p-6 max-h-96 overflow-y-auto" id="unfinished-tasks-container">
         <p class="text-gray-400 text-sm">Загрузка задач...</p>
+    </div>
+</div>
+
+<!-- Модальное окно редактирования задачи -->
+<div id="edit-task-modal" class="fixed z-50 hidden inset-0 flex items-center justify-center">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-md p-6 fade-in">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-semibold text-gray-800">Редактирование задачи</h3>
+            <button id="close-edit-task-btn" class="text-gray-400 hover:text-gray-600">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="mb-4">
+            <label class="block text-gray-700 mb-2">Текст задачи</label>
+            <input type="text" id="edit-task-text" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div>
+                <label class="block text-gray-700 mb-2">Ответственный</label>
+                <input type="text" id="edit-task-responsible" list="edit-task-responsible-list" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                <datalist id="edit-task-responsible-list"></datalist>
+            </div>
+            <div>
+                <label class="block text-gray-700 mb-2">Дедлайн</label>
+                <input type="datetime-local" id="edit-task-deadline" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+            </div>
+        </div>
+        <div class="mb-4">
+            <label class="block text-gray-700 mb-2">Приоритет</label>
+            <div class="priority-selector">
+                <div class="priority-bars" id="edit-task-priority-bars">
+                    <div class="priority-bar" data-priority="1"></div>
+                    <div class="priority-bar" data-priority="2"></div>
+                    <div class="priority-bar" data-priority="3"></div>
+                    <div class="priority-bar" data-priority="4"></div>
+                    <div class="priority-bar" data-priority="5"></div>
+                </div>
+                <div class="priority-label" id="edit-task-priority-label">Не указан</div>
+            </div>
+        </div>
+        <div class="flex justify-end">
+            <button id="save-task-btn" class="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">Сохранить</button>
+        </div>
     </div>
 </div>
 
@@ -987,27 +1027,6 @@
         
         // Обновление отображения выбранного приоритета
         function updatePriorityDisplay() {
-            // Сбрасываем все столбики
-            document.querySelectorAll('#priority-bars .priority-bar').forEach(bar => {
-                bar.style.backgroundColor = '#d1d5db';
-            });
-            
-            // Устанавливаем активные столбики
-            if (state.selectedPriority > 0) {
-                for (let i = 0; i < state.selectedPriority; i++) {
-                    const bar = document.querySelector(`#priority-bars .priority-bar:nth-child(${i + 1})`);
-                    if (bar) {
-                        if (state.selectedPriority <= 2) {
-                            bar.style.backgroundColor = '#10b981'; // Зеленый для низкого
-                        } else if (state.selectedPriority <= 4) {
-                            bar.style.backgroundColor = '#f59e0b'; // Желтый для среднего
-                        } else {
-                            bar.style.backgroundColor = '#ef4444'; // Красный для высокого
-                        }
-                    }
-                }
-            }
-            
             // Обновляем текстовую метку
             if (state.selectedPriority === 0) {
                 elements.priorityLabel.textContent = 'Не указан';
@@ -1738,11 +1757,19 @@
             elements.showOptionsBtn.addEventListener('click', () => toggleTaskOptions());
             
             // Выбор приоритета
-            elements.priorityBars.addEventListener('click', (e) => {
-                if (e.target.classList.contains('priority-bar')) {
-                    state.selectedPriority = parseInt(e.target.getAttribute('data-priority'));
+            document.querySelectorAll('.priority-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    // Remove active class from all buttons
+                    document.querySelectorAll('.priority-btn').forEach(b => {
+                        b.classList.remove('active');
+                    });
+                    
+                    // Add active class to clicked button
+                    this.classList.add('active');
+                    
+                    state.selectedPriority = parseInt(this.getAttribute('data-priority'));
                     updatePriorityDisplay();
-                }
+                });
             });
             
             // Поиск в истории
@@ -1921,7 +1948,10 @@ function renderUnfinishedTasks() {
 
         taskElem.innerHTML = `
             <div>
-                <div class="font-medium text-gray-800">${task.text}</div>
+                <div class="font-medium text-gray-800 cursor-pointer hover:text-blue-500" 
+                     onclick="openEditTaskModal('${task.meetingId}', '${task.text.replace(/'/g, "\\'")}', event)">
+                    ${task.text}
+                </div>
                 <div class="text-sm text-gray-500 space-x-2 mt-1">${parts.join('')}</div>
             </div>
             <div>
@@ -1967,6 +1997,187 @@ document.querySelectorAll('#unfinished-tasks-section .sort-btn').forEach(btn => 
         renderUnfinishedTasks();
     });
 });
+
+let currentEditingTask = null;
+
+function openEditTaskModal(meetingId, taskText, event) {
+    const meeting = state.meetings.find(m => m.id === parseInt(meetingId)) || state.currentMeeting;
+    if (!meeting) return;
+
+    const task = meeting.tasks.find(t => t.text === taskText);
+    if (!task) return;
+
+    currentEditingTask = { meetingId: parseInt(meetingId), originalText: taskText };
+
+    // Position modal in center of screen
+    const modal = document.getElementById('edit-task-modal');
+    modal.style.position = 'fixed';
+    modal.style.top = '50%';
+    modal.style.left = '50%';
+    modal.style.transform = 'translate(-50%, -50%)';
+    modal.style.margin = '0';
+
+    // Fill the form
+    document.getElementById('edit-task-text').value = task.text;
+    document.getElementById('edit-task-responsible').value = task.responsible || '';
+    document.getElementById('edit-task-deadline').value = task.deadline ? 
+        new Date(task.deadline).toISOString().slice(0, 16) : '';
+    
+    // Set priority
+    const priority = task.priority || 0;
+    const bars = document.querySelectorAll('#edit-task-priority-bars .priority-bar');
+    bars.forEach((bar, index) => {
+        if (index < priority) {
+            if (priority <= 2) bar.style.backgroundColor = '#10b981';
+            else if (priority <= 4) bar.style.backgroundColor = '#f59e0b';
+            else bar.style.backgroundColor = '#ef4444';
+        } else {
+            bar.style.backgroundColor = '#d1d5db';
+        }
+    });
+
+    const label = document.getElementById('edit-task-priority-label');
+    if (priority === 0) {
+        label.textContent = 'Не указан';
+        label.className = 'priority-label';
+    } else if (priority <= 2) {
+        label.textContent = 'Низкий';
+        label.className = 'priority-label low';
+    } else if (priority <= 4) {
+        label.textContent = 'Средний';
+        label.className = 'priority-label medium';
+    } else {
+        label.textContent = 'Высокий';
+        label.className = 'priority-label high';
+    }
+
+    // Update responsible datalist
+    const datalist = document.getElementById('edit-task-responsible-list');
+    datalist.innerHTML = '';
+    state.responsibleList.forEach(resp => {
+        const option = document.createElement('option');
+        option.value = resp;
+        datalist.appendChild(option);
+    });
+
+    // Show modal
+    document.getElementById('edit-task-modal').classList.remove('hidden');
+}
+
+function saveTaskChanges() {
+    if (!currentEditingTask) return;
+
+    const meeting = state.meetings.find(m => m.id === currentEditingTask.meetingId) || state.currentMeeting;
+    if (!meeting) return;
+
+    const task = meeting.tasks.find(t => t.text === currentEditingTask.originalText);
+    if (!task) return;
+
+    // Update task properties
+    task.text = document.getElementById('edit-task-text').value.trim();
+    task.responsible = document.getElementById('edit-task-responsible').value.trim() || null;
+    
+    const deadline = document.getElementById('edit-task-deadline').value;
+    task.deadline = deadline ? new Date(deadline).toISOString() : null;
+
+    // Get priority from active bars (only colored bars that aren't gray)
+    const bars = document.querySelectorAll('#edit-task-priority-bars .priority-bar');
+    let priority = 0;
+    bars.forEach(bar => {
+        if (bar.style.backgroundColor && 
+            bar.style.backgroundColor !== 'rgb(209, 213, 219)' &&
+            bar.style.backgroundColor !== '#d1d5db') {
+            priority++;
+        }
+    });
+    task.priority = priority || null;
+
+    // Update responsible history
+    if (task.responsible) {
+        addResponsibleToHistory(task.responsible);
+    }
+
+    saveData();
+    renderUnfinishedTasks();
+    closeEditTaskModal();
+}
+
+function closeEditTaskModal() {
+    document.getElementById('edit-task-modal').classList.add('hidden');
+    currentEditingTask = null;
+}
+
+// Add event listeners for the modal
+document.getElementById('close-edit-task-btn').addEventListener('click', closeEditTaskModal);
+document.getElementById('save-task-btn').addEventListener('click', saveTaskChanges);
+
+// Priority bars interaction
+document.getElementById('edit-task-priority-bars').addEventListener('click', function(e) {
+    if (!e.target.classList.contains('priority-bar')) return;
+
+    const clickedPriority = parseInt(e.target.getAttribute('data-priority'));
+    const bars = this.querySelectorAll('.priority-bar');
+    const label = document.getElementById('edit-task-priority-label');
+    
+    // Если кликнули на уже активный приоритет - сбрасываем
+    const currentPriority = getCurrentPriority();
+    if (currentPriority === clickedPriority) {
+        resetPriority();
+        return;
+    }
+
+    // Устанавливаем новый приоритет
+    bars.forEach((bar, index) => {
+        const priority = index + 1;
+        if (priority <= clickedPriority) {
+            if (clickedPriority <= 2) bar.style.backgroundColor = '#10b981';
+            else if (clickedPriority <= 4) bar.style.backgroundColor = '#f59e0b';
+            else bar.style.backgroundColor = '#ef4444';
+        } else {
+            bar.style.backgroundColor = '#d1d5db';
+        }
+    });
+
+    updatePriorityLabel(clickedPriority);
+});
+
+// Сброс приоритета
+document.getElementById('reset-priority-btn').addEventListener('click', resetPriority);
+
+function getCurrentPriority() {
+    const bars = document.querySelectorAll('#edit-task-priority-bars .priority-bar');
+    let priority = 0;
+    bars.forEach(bar => {
+        if (!bar.style.backgroundColor || bar.style.backgroundColor === 'rgb(209, 213, 219)') return;
+        priority++;
+    });
+    return priority;
+}
+
+function resetPriority() {
+    const bars = document.querySelectorAll('#edit-task-priority-bars .priority-bar');
+    bars.forEach(bar => {
+        bar.style.backgroundColor = '#d1d5db';
+    });
+    updatePriorityLabel(0);
+}
+
+function updatePriorityLabel(priority) {
+    const label = document.getElementById('edit-task-priority-label');
+    if (priority === 0) {
+        label.textContent = 'Не указан';
+        label.className = 'priority-label';
+    } else if (priority <= 2) {
+        label.textContent = 'Низкий';
+        label.className = 'priority-label low';
+    } else if (priority <= 4) {
+        label.textContent = 'Средний';
+        label.className = 'priority-label medium';
+    } else {
+        label.textContent = 'Высокий';
+        label.className = 'priority-label high';
+    }
+}
 
 const originalSwitchTab = switchTab;
 switchTab = function(tab) {
