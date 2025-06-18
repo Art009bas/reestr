@@ -54,7 +54,7 @@
             font-size: 12px;
             top: 50%;
             left: 50%;
-            transform: translate(-50%, -50%);
+            transform: translate(-50%, -100%);
         }
         
         .progress-bar {
@@ -264,6 +264,13 @@
             padding: 0 2px;
             border-radius: 2px;
         }
+        .edit-task-modal-container {
+            position: fixed;
+            top: 0;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 50;
+        }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
@@ -319,7 +326,7 @@
 </div>
 
 <!-- Модальное окно редактирования задачи -->
-<div id="edit-task-modal" class="fixed z-50 hidden inset-0 flex items-center justify-center">
+<div id="edit-task-modal" class="fixed z-50 hidden" style="top: 20px; left: 50%; transform: translateX(-50%);">
     <div class="bg-white rounded-xl shadow-xl w-full max-w-md p-6 fade-in">
         <div class="flex justify-between items-center mb-4">
             <h3 class="text-lg font-semibold text-gray-800">Редактирование задачи</h3>
@@ -2009,12 +2016,12 @@ function openEditTaskModal(meetingId, taskText, event) {
 
     currentEditingTask = { meetingId: parseInt(meetingId), originalText: taskText };
 
-    // Position modal in center of screen
+    // Position modal above unfinished tasks section
     const modal = document.getElementById('edit-task-modal');
     modal.style.position = 'fixed';
-    modal.style.top = '50%';
+    modal.style.top = '0';
     modal.style.left = '50%';
-    modal.style.transform = 'translate(-50%, -50%)';
+    modal.style.transform = 'translate(-50%, 0%)';
     modal.style.margin = '0';
 
     // Fill the form
